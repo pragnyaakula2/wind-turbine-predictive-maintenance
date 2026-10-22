@@ -1,0 +1,11 @@
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+.pytest_cache/
+.env
+*.log
+data/processed/
+data/raw/
+models/lof_anomaly_detector.joblib
