@@ -1,12 +1,13 @@
-
-import pandas as pd
-import numpy as np
+import os
 import joblib
+import numpy as np
+import pandas as pd
 
 from sklearn.ensemble import IsolationForest
 from sklearn.metrics import (
     classification_report,
     confusion_matrix,
+    f1_score,
     roc_auc_score,
 )
 from sklearn.preprocessing import StandardScaler
@@ -63,8 +64,6 @@ validation_scores = -model.decision_function(X_val)
 threshold = np.inf
 best_f1 = -1.0
 
-from sklearn.metrics import f1_score
-
 for candidate in np.quantile(
     validation_scores, np.linspace(0.50, 0.995, 100)
 ):
@@ -94,7 +93,6 @@ if y_test.nunique() == 2:
 else:
     auc = None
 
-import os
 os.makedirs("models", exist_ok=True)
 
 joblib.dump(

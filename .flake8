@@ -17,5 +17,6 @@ ignore =
     E131,
     E302,
     E305,
-    F401
+    F401,
+    E402
 max-complexity = 15
