@@ -88,23 +88,52 @@ print(classification_report(
     y_test, test_predictions, zero_division=0
 ))
 
-if y_test.nunique() == 2:
-    print(
-        "ROC-AUC:",
-        roc_auc_score(y_test, test_scores),
+    if y_test.nunique() == 2:
+        auc = roc_auc_score(y_test, test_scores)
+        print("ROC-AUC:", auc)
+    else:
+        auc = None
+
+    import os
+    os.makedirs("models", exist_ok=True)
+
+    joblib.dump(
+        {
+            "model": model,
+            "features": feature_columns,
+            "threshold": threshold,
+        },
+        MODEL_FILE,
     )
 
-import os
-os.makedirs("models", exist_ok=True)
+    print("\nModel saved to:", MODEL_FILE)
 
-joblib.dump(
-    {
-        "model": model,
-        "features": feature_columns,
-        "threshold": threshold,
-    },
-    MODEL_FILE,
-)
+    # MLflow experiment tracking
+    try:
+        import mlflow
+        import mlflow.sklearn
 
-print("\nModel saved to:", MODEL_FILE)
+        mlflow.set_experiment("wind-turbine-anomaly-detection")
+        with mlflow.start_run(run_name="isolation_forest"):
+            mlflow.log_params({
+                "model_type": "IsolationForest",
+                "n_estimators": 200,
+                "contamination": "auto",
+                "random_state": 42,
+                "threshold": float(threshold),
+                "num_features": len(feature_columns),
+            })
+
+            metrics_to_log = {
+                "val_best_f1": float(best_f1),
+                "test_f1": float(f1_score(y_test, test_predictions, zero_division=0)),
+            }
+            if auc is not None:
+                metrics_to_log["test_roc_auc"] = float(auc)
+
+            mlflow.log_metrics(metrics_to_log)
+            mlflow.sklearn.log_model(model, "isolation_forest_model")
+            print("Logged experiment run to MLflow.")
+    except Exception as exc:
+        print(f"MLflow logging notice: {exc}")
 

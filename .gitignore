@@ -9,3 +9,5 @@ __pycache__/
 data/processed/
 data/raw/
 models/lof_anomaly_detector.joblib
+mlruns/
+.coverage

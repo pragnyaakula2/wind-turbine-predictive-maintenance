@@ -1,0 +1,16 @@
+[flake8]
+max-line-length = 100
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    .venv,
+    data,
+    models,
+    results
+ignore =
+    # E203: whitespace before ':' (black/flake8 conflict)
+    E203,
+    # W503: line break before binary operator
+    W503
+max-complexity = 12
