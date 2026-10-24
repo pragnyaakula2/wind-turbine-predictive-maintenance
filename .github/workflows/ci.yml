@@ -40,4 +40,4 @@ jobs:
 
       - name: Run Pylint (Static Code Analysis)
         run: |
-          pylint --rcfile=.pylintrc src/validate_data.py src/feature_engineering.py
+          pylint --rcfile=.pylintrc --fail-under=8.0 src/validate_data.py src/feature_engineering.py

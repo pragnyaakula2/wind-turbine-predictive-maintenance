@@ -15,7 +15,8 @@ disable=
     too-many-locals,
     too-many-statements,
     too-many-branches,
-    duplicate-code
+    duplicate-code,
+    trailing-newlines
 
 [FORMAT]
 max-line-length=100

@@ -67,4 +67,3 @@ def run_validation(input_path: str = INPUT_FILE, output_path: str = OUTPUT_FILE)
 
 if __name__ == "__main__":
     run_validation()
-
