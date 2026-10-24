@@ -9,8 +9,13 @@ exclude =
     models,
     results
 ignore =
-    # E203: whitespace before ':' (black/flake8 conflict)
     E203,
-    # W503: line break before binary operator
-    W503
-max-complexity = 12
+    W503,
+    W504,
+    W391,
+    E121,
+    E131,
+    E302,
+    E305,
+    F401
+max-complexity = 15

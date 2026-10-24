@@ -1,6 +1,5 @@
 """Unit test suite using PyUnit (unittest) for the Wind Turbine Predictive Maintenance system."""
 
-import os
 from pathlib import Path
 import unittest
 import numpy as np
