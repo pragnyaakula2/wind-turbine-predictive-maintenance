@@ -9,7 +9,6 @@ from sklearn.metrics import (
     confusion_matrix,
     f1_score,
     roc_auc_score,
-    f1_score,
 )
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
