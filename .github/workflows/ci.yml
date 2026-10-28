@@ -41,3 +41,8 @@ jobs:
       - name: Run Pylint (Static Code Analysis)
         run: |
           pylint --rcfile=.pylintrc --fail-under=8.0 src/validate_data.py src/feature_engineering.py
+
+      - name: Build Docker Container (CD Verification)
+        run: |
+          docker build -t wind-turbine-dashboard:latest .
+

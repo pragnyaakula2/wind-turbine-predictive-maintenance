@@ -22,6 +22,8 @@ DATA_PATH = Path("data/processed/training_data.csv")
 # Use the model file that exists in your project.
 MODEL_CANDIDATES = [
     Path("models/lof_anomaly_detector.joblib"),
+    Path("models/final_anomaly_detector.joblib"),
+    Path("models/isolation_forest.joblib"),
 ]
 MODEL_PATH = next(
     (path for path in MODEL_CANDIDATES if path.exists()),

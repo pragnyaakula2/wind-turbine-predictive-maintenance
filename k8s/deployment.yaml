@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wind-turbine-deployment
+  labels:
+    app: wind-turbine
+    tier: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: wind-turbine
+  template:
+    metadata:
+      labels:
+        app: wind-turbine
+        tier: frontend
+    spec:
+      containers:
+        - name: wind-turbine-dashboard
+          image: wind-turbine-dashboard:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8501
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          # Health checks to ensure zero downtime and automatic pod restart
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+
