@@ -1,25 +1,26 @@
 
+import os
 import pandas as pd
 import numpy as np
 import joblib
 
-from sklearn.ensemble import IsolationForest
+from sklearn.neighbors import LocalOutlierFactor
 from sklearn.metrics import (
     classification_report,
     confusion_matrix,
     roc_auc_score,
+    f1_score,
 )
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 
 DATA_FILE = "data/processed/training_data.csv"
-MODEL_FILE = "models/isolation_forest.joblib"
+MODEL_FILE = "models/lof_anomaly_detector.joblib"
 
 df = pd.read_csv(DATA_FILE, parse_dates=["timestamp"])
 df = df.sort_values("timestamp").reset_index(drop=True)
 
-# Exclude timestamps and the target label from model inputs.
-# Using the anomaly label as an input would cause target leakage.
+# Exclude timestamp and target label to prevent target leakage.
 feature_columns = [
     c for c in df.select_dtypes(include="number").columns
     if c != "is_anomaly"
@@ -41,29 +42,27 @@ y_train = y.iloc[:train_end]
 y_val = y.iloc[train_end:val_end]
 y_test = y.iloc[val_end:]
 
-# Train only on records labelled normal.
+# Train only on normal records.
 X_train_normal = X_train[y_train == 0]
 
 model = make_pipeline(
     StandardScaler(),
-    IsolationForest(
-        n_estimators=200,
+    LocalOutlierFactor(
+        n_neighbors=20,
         contamination="auto",
-        random_state=42,
+        novelty=True,
         n_jobs=-1,
     ),
 )
 
 model.fit(X_train_normal)
 
-# Isolation Forest: lower decision_function values are more anomalous.
+# Higher scores indicate more anomalous observations.
 validation_scores = -model.decision_function(X_val)
 
-# Choose a threshold using validation labels only.
+# Select threshold using validation labels only.
 threshold = np.inf
 best_f1 = -1.0
-
-from sklearn.metrics import f1_score
 
 for candidate in np.quantile(
     validation_scores, np.linspace(0.50, 0.995, 100)
@@ -75,10 +74,11 @@ for candidate in np.quantile(
         best_f1 = score
         threshold = candidate
 
-# Evaluate once on the held-out test period.
+# Evaluate on the held-out test period.
 test_scores = -model.decision_function(X_test)
 test_predictions = (test_scores >= threshold).astype(int)
 
+print("Algorithm: Local Outlier Factor (LOF)")
 print("Threshold:", threshold)
 print("\nConfusion matrix:")
 print(confusion_matrix(y_test, test_predictions))
@@ -89,12 +89,8 @@ print(classification_report(
 ))
 
 if y_test.nunique() == 2:
-    print(
-        "ROC-AUC:",
-        roc_auc_score(y_test, test_scores),
-    )
+    print("ROC-AUC:", roc_auc_score(y_test, test_scores))
 
-import os
 os.makedirs("models", exist_ok=True)
 
 joblib.dump(
@@ -106,5 +102,4 @@ joblib.dump(
     MODEL_FILE,
 )
 
-print("\nModel saved to:", MODEL_FILE)
-
+print("\nLOF model saved to:", MODEL_FILE)
