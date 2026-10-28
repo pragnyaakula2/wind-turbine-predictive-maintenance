@@ -1,0 +1,48 @@
+name: CI Quality, Security & Testing Pipeline
+
+on:
+  push:
+    branches: [ main, "**" ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  quality-and-tests:
+    name: Code Quality & Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run PyUnit (unittest) Test Suite
+        run: |
+          python -m unittest discover -s tests -p "test_unit.py" -v
+
+      - name: Run Flake8 (PEP8 & Syntax Linter)
+        run: |
+          flake8 src/ tests/
+
+      - name: Run Bandit (Security Vulnerability Scanner)
+        run: |
+          bandit -c .bandit -r src/
+
+      - name: Run Pylint (Static Code Analysis)
+        run: |
+          pylint --rcfile=.pylintrc --fail-under=8.0 src/validate_data.py src/feature_engineering.py
+
+      - name: Build Docker Container (CD Verification)
+        run: |
+          docker build -t wind-turbine-dashboard:latest .
+

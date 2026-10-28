@@ -1,15 +1,14 @@
-
 import os
-import pandas as pd
-import numpy as np
 import joblib
+import numpy as np
+import pandas as pd
 
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.metrics import (
     classification_report,
     confusion_matrix,
-    roc_auc_score,
     f1_score,
+    roc_auc_score,
 )
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
@@ -89,7 +88,10 @@ print(classification_report(
 ))
 
 if y_test.nunique() == 2:
-    print("ROC-AUC:", roc_auc_score(y_test, test_scores))
+    auc = roc_auc_score(y_test, test_scores)
+    print("ROC-AUC:", auc)
+else:
+    auc = None
 
 os.makedirs("models", exist_ok=True)
 
@@ -103,3 +105,32 @@ joblib.dump(
 )
 
 print("\nLOF model saved to:", MODEL_FILE)
+
+# MLflow experiment tracking
+try:
+    import mlflow
+    import mlflow.sklearn
+
+    mlflow.set_experiment("wind-turbine-anomaly-detection")
+    with mlflow.start_run(run_name="local_outlier_factor"):
+        mlflow.log_params({
+            "model_type": "LocalOutlierFactor",
+            "n_neighbors": 20,
+            "contamination": "auto",
+            "threshold": float(threshold),
+            "num_features": len(feature_columns),
+        })
+
+        metrics_to_log = {
+            "val_best_f1": float(best_f1),
+            "test_f1": float(f1_score(y_test, test_predictions, zero_division=0)),
+        }
+        if auc is not None:
+            metrics_to_log["test_roc_auc"] = float(auc)
+
+        mlflow.log_metrics(metrics_to_log)
+        mlflow.sklearn.log_model(model, "lof_anomaly_model")
+        print("Logged experiment run to MLflow.")
+except Exception as exc:
+    print(f"MLflow logging notice: {exc}")
+

@@ -5,6 +5,7 @@ import joblib
 import pandas as pd
 import numpy as np
 
+
 def test_saved_model_exists():
     assert Path("models/lof_anomaly_detector.joblib").exists()
 

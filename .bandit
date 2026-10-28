@@ -1,0 +1,8 @@
+# Bandit security linter configuration
+skips: []
+exclude_dirs:
+  - "venv"
+  - ".venv"
+  - "tests"
+  - "data"
+  - "models"

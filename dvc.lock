@@ -1,0 +1,50 @@
+schema: '2.0'
+stages:
+  validate:
+    cmd: python src/validate_data.py
+    deps:
+    - path: data/raw/turbine_5yr_labeled_data.csv
+      hash: md5
+      md5: 78b02c99bad9d6e1ada90b862b884bbc
+      size: 16770571
+    - path: src/validate_data.py
+      hash: md5
+      md5: 81c46f651c7d51d90c06da8dad534557
+      size: 2197
+    outs:
+    - path: data/processed/validated_data.csv
+      hash: md5
+      md5: d2b7d2f9939fba85038a9c4d370aab56
+      size: 17033372
+  feature_engineering:
+    cmd: python src/feature_engineering.py
+    deps:
+    - path: data/processed/validated_data.csv
+      hash: md5
+      md5: d2b7d2f9939fba85038a9c4d370aab56
+      size: 17033372
+    - path: src/feature_engineering.py
+      hash: md5
+      md5: a92a5d7940efb16c5bbe2268b304afa8
+      size: 2129
+    outs:
+    - path: data/processed/features.csv
+      hash: md5
+      md5: 16200c19dd39f61ed100abcde78f2e6b
+      size: 107078396
+  prepare:
+    cmd: python src/prepare_dataset.py
+    deps:
+    - path: data/processed/features.csv
+      hash: md5
+      md5: 16200c19dd39f61ed100abcde78f2e6b
+      size: 107078396
+    - path: src/prepare_dataset.py
+      hash: md5
+      md5: df42b75cf81486436cf4cc117b9531f1
+      size: 1068
+    outs:
+    - path: data/processed/training_data.csv
+      hash: md5
+      md5: 65af5c566887623eac5e72d1d9d63601
+      size: 102526600
