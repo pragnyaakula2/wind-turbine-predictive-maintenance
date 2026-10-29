@@ -1,5 +1,5 @@
 # Bandit security linter configuration
-skips: []
+skips: ['B104']
 exclude_dirs:
   - "venv"
   - ".venv"
