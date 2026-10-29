@@ -9,4 +9,9 @@ flake8
 pylint
 bandit
 mlflow
+fastapi
+uvicorn
+torch
+pennylane
+httpx
 

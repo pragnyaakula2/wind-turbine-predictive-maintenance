@@ -28,7 +28,7 @@ jobs:
 
       - name: Run PyUnit (unittest) Test Suite
         run: |
-          python -m unittest discover -s tests -p "test_unit.py" -v
+          python -m unittest discover -s tests -p "test_*.py" -v
 
       - name: Run Flake8 (PEP8 & Syntax Linter)
         run: |

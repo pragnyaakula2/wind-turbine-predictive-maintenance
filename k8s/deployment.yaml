@@ -30,6 +30,13 @@ spec:
             limits:
               cpu: "500m"
               memory: "1Gi"
+          env:
+            - name: ML_SERVICE_URL
+              value: "http://wind-turbine-ml-service:8001"
+            - name: DL_SERVICE_URL
+              value: "http://wind-turbine-dl-service:8002"
+            - name: QML_SERVICE_URL
+              value: "http://wind-turbine-qml-service:8003"
           # Health checks to ensure zero downtime and automatic pod restart
           livenessProbe:
             httpGet:
