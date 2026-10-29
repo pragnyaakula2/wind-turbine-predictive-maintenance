@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wind-turbine-qml-deployment
+  labels:
+    app: wind-turbine
+    tier: qml-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wind-turbine
+      tier: qml-service
+  template:
+    metadata:
+      labels:
+        app: wind-turbine
+        tier: qml-service
+    spec:
+      containers:
+        - name: qml-service
+          image: wind-turbine-dashboard:latest
+          imagePullPolicy: IfNotPresent
+          command: ["uvicorn", "src.services.qml_service:app", "--host", "0.0.0.0", "--port", "8003"]
+          ports:
+            - name: http
+              containerPort: 8003
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wind-turbine-qml-service
+  labels:
+    app: wind-turbine
+    tier: qml-service
+spec:
+  type: ClusterIP
+  selector:
+    app: wind-turbine
+    tier: qml-service
+  ports:
+    - name: http
+      port: 8003
+      targetPort: 8003
