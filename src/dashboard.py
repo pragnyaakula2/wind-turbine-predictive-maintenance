@@ -4,6 +4,7 @@ Supports Classical ML (LOF/iForest), Deep Learning (LSTM Autoencoder), and
 Quantum ML (PennyLane VQC) with single model scoring or multi-model comparison.
 """
 
+import os
 from pathlib import Path
 import time
 import joblib
@@ -45,10 +46,10 @@ SENSORS = [
     "particle_count",
 ]
 
-# Service Endpoints
-ML_SERVICE_URL = "http://localhost:8001"
-DL_SERVICE_URL = "http://localhost:8002"
-QML_SERVICE_URL = "http://localhost:8003"
+# Service Endpoints (configurable via env variables for Docker & Kubernetes)
+ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://localhost:8001")
+DL_SERVICE_URL = os.getenv("DL_SERVICE_URL", "http://localhost:8002")
+QML_SERVICE_URL = os.getenv("QML_SERVICE_URL", "http://localhost:8003")
 
 
 # --------------------------------------------------
