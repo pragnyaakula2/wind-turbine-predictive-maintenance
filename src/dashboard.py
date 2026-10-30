@@ -256,7 +256,7 @@ if selected_mode == "Triple Model Comparison (All 3 Side-by-Side)":
         # Evaluate subset for QML simulation speed
         qml_sample_size = min(len(filtered), 100)
         qml_sample = filtered.head(qml_sample_size)
-        qml_records = qml_sample.to_dict(orient="records")
+        qml_records = qml_sample[numeric_cols].to_dict(orient="records")
         if qml_online:
             qml_res = call_service_predict(QML_SERVICE_URL, qml_records)
         else:
@@ -322,7 +322,11 @@ else:
         else:
             qml_n = min(len(filtered), 200)
             filtered = filtered.tail(qml_n).copy()
-            pred_res = get_qml_predictions()
+            qml_sample_records = filtered[numeric_cols].to_dict(orient="records")
+            if qml_online:
+                pred_res = call_service_predict(QML_SERVICE_URL, qml_sample_records)
+            else:
+                pred_res = fallback_qml_predict(filtered)
             preds = pred_res["predictions"]
             filtered["anomaly_score"] = [p["quantum_anomaly_score"] for p in preds]
             filtered["predicted_anomaly"] = [p["is_anomaly"] for p in preds]
