@@ -193,8 +193,21 @@ if date_filtered.empty:
     st.warning("No records exist in this date range.")
     st.stop()
 
+st.sidebar.divider()
+st.sidebar.header("Data Sampling")
+max_available = min(len(date_filtered), 5000)
+default_val = min(1000, max_available)
+sample_size_slider = st.sidebar.slider(
+    "Number of Recent Samples to Analyze",
+    min_value=100,
+    max_value=max_available,
+    value=default_val,
+    step=100,
+    help="Select how many recent sensor records to visualize and score.",
+)
+
 # Keep reasonable sample size for real-time dashboard interaction
-limit_rows = 500 if "Quantum" in selected_mode else MAX_DISPLAY_ROWS
+limit_rows = 500 if "Quantum" in selected_mode else sample_size_slider
 display_sample_size = min(len(date_filtered), limit_rows)
 filtered = date_filtered.tail(display_sample_size).copy()
 
@@ -203,7 +216,9 @@ filtered = date_filtered.tail(display_sample_size).copy()
 # INFERENCE LOGIC
 # --------------------------------------------------
 
-sample_records = filtered.to_dict(orient="records")
+# Prepare clean numeric records for API payloads without non-serializable Timestamps
+numeric_cols = [c for c in filtered.columns if c not in ["timestamp", "is_anomaly"]]
+sample_records = filtered[numeric_cols].to_dict(orient="records")
 
 
 def get_ml_predictions():
@@ -241,7 +256,7 @@ if selected_mode == "Triple Model Comparison (All 3 Side-by-Side)":
         # Evaluate subset for QML simulation speed
         qml_sample_size = min(len(filtered), 100)
         qml_sample = filtered.head(qml_sample_size)
-        qml_records = qml_sample.to_dict(orient="records")
+        qml_records = qml_sample[numeric_cols].to_dict(orient="records")
         if qml_online:
             qml_res = call_service_predict(QML_SERVICE_URL, qml_records)
         else:
@@ -307,7 +322,11 @@ else:
         else:
             qml_n = min(len(filtered), 200)
             filtered = filtered.tail(qml_n).copy()
-            pred_res = get_qml_predictions()
+            qml_sample_records = filtered[numeric_cols].to_dict(orient="records")
+            if qml_online:
+                pred_res = call_service_predict(QML_SERVICE_URL, qml_sample_records)
+            else:
+                pred_res = fallback_qml_predict(filtered)
             preds = pred_res["predictions"]
             filtered["anomaly_score"] = [p["quantum_anomaly_score"] for p in preds]
             filtered["predicted_anomaly"] = [p["is_anomaly"] for p in preds]
