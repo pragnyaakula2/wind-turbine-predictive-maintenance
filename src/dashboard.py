@@ -193,8 +193,21 @@ if date_filtered.empty:
     st.warning("No records exist in this date range.")
     st.stop()
 
+st.sidebar.divider()
+st.sidebar.header("Data Sampling")
+max_available = min(len(date_filtered), 5000)
+default_val = min(1000, max_available)
+sample_size_slider = st.sidebar.slider(
+    "Number of Recent Samples to Analyze",
+    min_value=100,
+    max_value=max_available,
+    value=default_val,
+    step=100,
+    help="Select how many recent sensor records to visualize and score.",
+)
+
 # Keep reasonable sample size for real-time dashboard interaction
-limit_rows = 500 if "Quantum" in selected_mode else MAX_DISPLAY_ROWS
+limit_rows = 500 if "Quantum" in selected_mode else sample_size_slider
 display_sample_size = min(len(date_filtered), limit_rows)
 filtered = date_filtered.tail(display_sample_size).copy()
 
