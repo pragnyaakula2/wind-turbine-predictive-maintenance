@@ -203,7 +203,9 @@ filtered = date_filtered.tail(display_sample_size).copy()
 # INFERENCE LOGIC
 # --------------------------------------------------
 
-sample_records = filtered.to_dict(orient="records")
+# Prepare clean numeric records for API payloads without non-serializable Timestamps
+numeric_cols = [c for c in filtered.columns if c not in ["timestamp", "is_anomaly"]]
+sample_records = filtered[numeric_cols].to_dict(orient="records")
 
 
 def get_ml_predictions():
