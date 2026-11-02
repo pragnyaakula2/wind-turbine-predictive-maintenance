@@ -25,9 +25,10 @@ QML_SENSORS = [
     "oil_pressure",
 ]
 
-SENSOR_MINS = np.array([30.0, 30.0, 0.0, 0.0], dtype=np.float32)
-SENSOR_MAXS = np.array([110.0, 105.0, 5.0, 10.0], dtype=np.float32)
-QML_THRESHOLD = 0.45
+# Empirical baseline statistics for 4 key sensors (derived from normal operating records)
+SENSOR_MEANS = np.array([60.87, 67.83, 0.0210, 4.276], dtype=np.float32)
+SENSOR_STDS = np.array([7.34, 7.38, 0.0031, 0.0877], dtype=np.float32)
+QML_THRESHOLD = 0.52
 
 # ----------------------------------------------------
 # PENNYLANE QUANTUM CIRCUIT DEFINITION
@@ -35,35 +36,24 @@ QML_THRESHOLD = 0.45
 NUM_WIRES = 4
 dev = qml.device("default.qubit", wires=NUM_WIRES)
 
-# Pre-tuned variational parameters (rotation angles)
-QUANTUM_WEIGHTS = np.array([
-    [0.54, 0.32, 0.76, 0.19],
-    [0.87, 0.45, 0.23, 0.61],
-], dtype=np.float32)
-
 
 @qml.qnode(dev)
-def quantum_anomaly_circuit(features, weights):
-    """Encodes normalized sensor values via AngleEmbedding and computes Pauli-Z expectation."""
+def quantum_anomaly_circuit(z_features):
+    """Encodes normalized sensor deviations via AngleEmbedding and computes Pauli-Z expectation."""
+    # Convert standardized deviations to angle interval [0, pi]
+    angles = np.clip(np.abs(z_features), 0.0, 3.0) * (np.pi / 3.0)
+
     # 1. State preparation: Angle Embedding into |0> state
-    qml.AngleEmbedding(features, wires=range(NUM_WIRES), rotation="Y")
+    qml.AngleEmbedding(angles, wires=range(NUM_WIRES), rotation="Y")
 
-    # 2. Variational rotation layer
-    for i in range(NUM_WIRES):
-        qml.RY(weights[0, i], wires=i)
-
-    # 3. Entangling ring of CNOT gates
+    # 2. Entangling ring of CNOT gates
     qml.CNOT(wires=[0, 1])
     qml.CNOT(wires=[1, 2])
     qml.CNOT(wires=[2, 3])
     qml.CNOT(wires=[3, 0])
 
-    # 4. Secondary rotation layer
-    for i in range(NUM_WIRES):
-        qml.RZ(weights[1, i], wires=i)
-
-    # 5. Measure expectation value of Pauli-Z on qubit 0
-    return qml.expval(qml.PauliZ(0))
+    # 3. Measure expectation value of Pauli-Z across all 4 qubits
+    return [qml.expval(qml.PauliZ(i)) for i in range(NUM_WIRES)]
 
 
 class SensorDataInput(BaseModel):
@@ -101,25 +91,25 @@ def predict(payload: SensorDataInput):
             detail=f"Quantum ML service requires sensors: {missing}",
         )
 
-    # Normalize sensor features to [0, pi] for angle embedding
+    # Compute standardized deviations from nominal baseline
     vals = df[QML_SENSORS].to_numpy(dtype=np.float32)
-    norm = np.clip((vals - SENSOR_MINS) / (SENSOR_MAXS - SENSOR_MINS + 1e-6), 0.0, 1.0)
-    angle_features = norm * np.pi
+    z_scores = np.atleast_2d((vals - SENSOR_MEANS) / (SENSOR_STDS + 1e-6))
 
-    results = []
-    for angles in angle_features:
-        # Run quantum circuit
-        expval = float(quantum_anomaly_circuit(angles, QUANTUM_WEIGHTS))
-        # Map PauliZ expectation (-1 to 1) to anomaly probability (0 to 1)
-        anomaly_score = (1.0 - expval) / 2.0
-        is_anomaly = int(anomaly_score >= QML_THRESHOLD)
+    # Vectorized evaluation across quantum circuit via parameter broadcasting
+    all_expvals = np.array(quantum_anomaly_circuit(z_scores))
+    mean_paulis = np.mean(all_expvals, axis=0)
+    anomaly_scores = (1.0 - mean_paulis) / 2.0
+    is_anomalies = (anomaly_scores >= QML_THRESHOLD).astype(int)
 
-        results.append({
-            "quantum_anomaly_score": round(anomaly_score, 4),
-            "pauli_z_expval": round(expval, 4),
-            "is_anomaly": is_anomaly,
-            "status": "ANOMALY ALERT" if is_anomaly == 1 else "NORMAL",
-        })
+    results = [
+        {
+            "quantum_anomaly_score": round(float(score), 4),
+            "pauli_z_expval": round(float(ev), 4),
+            "is_anomaly": int(ia),
+            "status": "ANOMALY ALERT" if ia == 1 else "NORMAL",
+        }
+        for score, ev, ia in zip(anomaly_scores, mean_paulis, is_anomalies)
+    ]
 
     latency_ms = (time.perf_counter() - start_time) * 1000.0
     return {

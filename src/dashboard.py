@@ -92,11 +92,11 @@ def check_service_health(base_url: str) -> bool:
         return False
 
 
-def call_service_predict(base_url: str, records: list) -> dict:
+def call_service_predict(base_url: str, records: list, timeout: float = 60.0) -> dict:
     resp = requests.post(
         f"{base_url}/predict",
         json={"records": records},
-        timeout=10.0,
+        timeout=timeout,
     )
     if resp.status_code == 200:
         return resp.json()
@@ -206,9 +206,8 @@ sample_size_slider = st.sidebar.slider(
     help="Select how many recent sensor records to visualize and score.",
 )
 
-# Keep reasonable sample size for real-time dashboard interaction
-limit_rows = 500 if "Quantum" in selected_mode else sample_size_slider
-display_sample_size = min(len(date_filtered), limit_rows)
+# Allow QML mode to evaluate full requested samples (up to slider value)
+display_sample_size = min(len(date_filtered), sample_size_slider)
 filtered = date_filtered.tail(display_sample_size).copy()
 
 
@@ -320,8 +319,6 @@ else:
             filtered["predicted_anomaly"] = [p["is_anomaly"] for p in preds]
             filtered["status"] = [p["status"] for p in preds]
         else:
-            qml_n = min(len(filtered), 200)
-            filtered = filtered.tail(qml_n).copy()
             qml_sample_records = filtered[numeric_cols].to_dict(orient="records")
             if qml_online:
                 pred_res = call_service_predict(QML_SERVICE_URL, qml_sample_records)
