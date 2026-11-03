@@ -72,10 +72,12 @@ dl_model = LSTMAutoencoder(input_dim=len(CORE_SENSORS))
 # Load pre-trained weights if available
 if MODEL_WEIGHTS_PATH.exists():
     try:
-        checkpoint = torch.load(MODEL_WEIGHTS_PATH, map_location="cpu", weights_only=False)
+        checkpoint = torch.load(MODEL_WEIGHTS_PATH, map_location="cpu", weights_only=True)
         dl_model.load_state_dict(checkpoint["model_state_dict"])
-        SENSOR_MEANS = checkpoint.get("means", SENSOR_MEANS)
-        SENSOR_STDS = checkpoint.get("stds", SENSOR_STDS)
+        if "means" in checkpoint:
+            SENSOR_MEANS = np.array(checkpoint["means"], dtype=np.float32)
+        if "stds" in checkpoint:
+            SENSOR_STDS = np.array(checkpoint["stds"], dtype=np.float32)
         RECONSTRUCTION_THRESHOLD = float(checkpoint.get("threshold", RECONSTRUCTION_THRESHOLD))
     except Exception as exc:
         print(f"Warning: Failed to load trained DL weights: {exc}")
