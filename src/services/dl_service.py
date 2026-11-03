@@ -4,6 +4,7 @@ Uses a PyTorch Recurrent Autoencoder to detect anomalies via reconstruction erro
 """
 
 import time
+from pathlib import Path
 from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
@@ -28,10 +29,12 @@ CORE_SENSORS = [
     "particle_count",
 ]
 
-# Normalization parameters (mean & std approximations for sensor channels)
-SENSOR_MEANS = np.array([65.0, 62.0, 1.5, 1.2, 0.9, 4.2, 150.0], dtype=np.float32)
-SENSOR_STDS = np.array([12.0, 10.0, 0.8, 0.6, 0.5, 0.8, 60.0], dtype=np.float32)
-RECONSTRUCTION_THRESHOLD = 0.085
+# Model artifact path and fallback parameters
+MODEL_WEIGHTS_PATH = Path("models/dl_lstm_autoencoder.pt")
+
+SENSOR_MEANS = np.array([60.87, 67.83, 0.021, 0.0167, 0.0208, 4.28, 918.8], dtype=np.float32)
+SENSOR_STDS = np.array([7.34, 7.38, 0.0031, 0.0022, 0.0027, 0.088, 452.2], dtype=np.float32)
+RECONSTRUCTION_THRESHOLD = 2.0
 
 
 class LSTMAutoencoder(nn.Module):
@@ -62,9 +65,23 @@ class LSTMAutoencoder(nn.Module):
         return reconstruction
 
 
-# Initialize model with consistent seed
+# Initialize model architecture
 torch.manual_seed(42)
 dl_model = LSTMAutoencoder(input_dim=len(CORE_SENSORS))
+
+# Load pre-trained weights if available
+if MODEL_WEIGHTS_PATH.exists():
+    try:
+        checkpoint = torch.load(MODEL_WEIGHTS_PATH, map_location="cpu", weights_only=True)
+        dl_model.load_state_dict(checkpoint["model_state_dict"])
+        if "means" in checkpoint:
+            SENSOR_MEANS = np.array(checkpoint["means"], dtype=np.float32)
+        if "stds" in checkpoint:
+            SENSOR_STDS = np.array(checkpoint["stds"], dtype=np.float32)
+        RECONSTRUCTION_THRESHOLD = float(checkpoint.get("threshold", RECONSTRUCTION_THRESHOLD))
+    except Exception as exc:
+        print(f"Warning: Failed to load trained DL weights: {exc}")
+
 dl_model.eval()
 
 

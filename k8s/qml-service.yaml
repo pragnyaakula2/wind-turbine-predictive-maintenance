@@ -63,3 +63,4 @@ spec:
     - name: http
       port: 8003
       targetPort: 8003
+
