@@ -252,14 +252,7 @@ if selected_mode == "Triple Model Comparison (All 3 Side-by-Side)":
     with st.spinner("Executing predictions across Classical ML, DL, and QML services..."):
         ml_res = get_ml_predictions()
         dl_res = get_dl_predictions()
-        # Evaluate subset for QML simulation speed
-        qml_sample_size = min(len(filtered), 100)
-        qml_sample = filtered.head(qml_sample_size)
-        qml_records = qml_sample[numeric_cols].to_dict(orient="records")
-        if qml_online:
-            qml_res = call_service_predict(QML_SERVICE_URL, qml_records)
-        else:
-            qml_res = fallback_qml_predict(qml_sample)
+        qml_res = get_qml_predictions()
 
     col1, col2, col3, col4 = st.columns(4)
     ml_alerts = sum(p["is_anomaly"] for p in ml_res["predictions"])
@@ -268,21 +261,17 @@ if selected_mode == "Triple Model Comparison (All 3 Side-by-Side)":
 
     col1.metric("1️⃣ Classical ML Alerts", f"{ml_alerts:,}", f"Latency: {ml_res['latency_ms']} ms")
     col2.metric("2️⃣ Deep Learning Alerts", f"{dl_alerts:,}", f"Latency: {dl_res['latency_ms']} ms")
-    col3.metric(
-        "3️⃣ Quantum ML Alerts",
-        f"{qml_alerts}/{qml_sample_size}",
-        f"Latency: {qml_res['latency_ms']} ms",
-    )
+    col3.metric("3️⃣ Quantum ML Alerts", f"{qml_alerts:,}", f"Latency: {qml_res['latency_ms']} ms")
     col4.metric("Actual Labelled Faults", f"{int(filtered['is_anomaly'].sum()):,}")
 
     st.divider()
     st.subheader("Comparison Table")
 
     comp_df = pd.DataFrame({
-        "timestamp": filtered["timestamp"].iloc[:qml_sample_size],
-        "Actual Anomaly": filtered["is_anomaly"].iloc[:qml_sample_size].map({0: "No", 1: "YES"}),
-        "Classical ML": [p["status"] for p in ml_res["predictions"][:qml_sample_size]],
-        "Deep Learning (LSTM)": [p["status"] for p in dl_res["predictions"][:qml_sample_size]],
+        "timestamp": filtered["timestamp"].values,
+        "Actual Anomaly": filtered["is_anomaly"].map({0: "No", 1: "YES"}).values,
+        "Classical ML": [p["status"] for p in ml_res["predictions"]],
+        "Deep Learning (LSTM)": [p["status"] for p in dl_res["predictions"]],
         "Quantum ML (VQC)": [p["status"] for p in qml_res["predictions"]],
     })
 

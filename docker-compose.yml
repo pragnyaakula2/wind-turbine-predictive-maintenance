@@ -15,6 +15,9 @@ services:
     command: ["uvicorn", "src.services.ml_service:app", "--host", "0.0.0.0", "--port", "8001"]
     ports:
       - "8001:8001"
+    volumes:
+      - ./src:/app/src
+      - ./models:/app/models
     restart: unless-stopped
     networks:
       - turbine-network
@@ -34,6 +37,9 @@ services:
     command: ["uvicorn", "src.services.dl_service:app", "--host", "0.0.0.0", "--port", "8002"]
     ports:
       - "8002:8002"
+    volumes:
+      - ./src:/app/src
+      - ./models:/app/models
     restart: unless-stopped
     networks:
       - turbine-network
@@ -53,6 +59,9 @@ services:
     command: ["uvicorn", "src.services.qml_service:app", "--host", "0.0.0.0", "--port", "8003"]
     ports:
       - "8003:8003"
+    volumes:
+      - ./src:/app/src
+      - ./models:/app/models
     restart: unless-stopped
     networks:
       - turbine-network
@@ -72,6 +81,9 @@ services:
     command: ["streamlit", "run", "src/dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
     ports:
       - "8501:8501"
+    volumes:
+      - ./src:/app/src
+      - ./models:/app/models
     restart: unless-stopped
     networks:
       - turbine-network
