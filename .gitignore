@@ -9,3 +9,6 @@ __pycache__/
 models/lof_anomaly_detector.joblib
 mlruns/
 .coverage
+node_modules/
+cypress/videos/
+cypress/screenshots/
