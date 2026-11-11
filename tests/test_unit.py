@@ -2,12 +2,20 @@
 
 from pathlib import Path
 import unittest
+import uuid
 import numpy as np
 import pandas as pd
 import joblib
 
 from src.validate_data import validate_data, SENSOR_RANGES
 from src.feature_engineering import engineer_features, SENSOR_COLUMNS
+from src.database import (
+    hash_password,
+    verify_user,
+    register_user,
+    log_prediction,
+    get_prediction_history,
+)
 
 
 class TestDataValidation(unittest.TestCase):
@@ -149,6 +157,98 @@ class TestModelArtifacts(unittest.TestCase):
         # Test binary classification logic against threshold
         predictions = (scores >= bundle["threshold"]).astype(int)
         self.assertTrue(set(predictions).issubset({0, 1}))
+
+
+class TestDatabaseAuthenticationAndLogging(unittest.TestCase):
+    """PyUnit test cases for secure authentication, password hashing, and audit logs."""
+
+    def test_salted_password_hashing(self):
+        """Verifies that SHA-256 password hashing with salt is robust and deterministic."""
+        raw_pw = "superSecretPassword123"
+        hashed_1 = hash_password(raw_pw)
+        hashed_2 = hash_password(raw_pw)
+        self.assertEqual(hashed_1, hashed_2)
+        self.assertNotEqual(raw_pw, hashed_1)
+        self.assertEqual(len(hashed_1), 64)  # 256 bits = 64 hex characters
+
+    def test_verify_user_credentials_success_and_failure(self):
+        """Ensures valid users authenticate and incorrect passwords fail gracefully."""
+        # Valid admin credentials
+        admin_res = verify_user("admin", "adminpassword123")
+        self.assertIsNotNone(admin_res)
+        self.assertEqual(admin_res["username"], "admin")
+        self.assertIn("Engineer", admin_res["role"])
+
+        # Invalid password
+        bad_pw_res = verify_user("admin", "wrongpassword")
+        self.assertIsNone(bad_pw_res)
+
+        # Non-existent user
+        no_user_res = verify_user("nonexistent_user", "password")
+        self.assertIsNone(no_user_res)
+
+    def test_register_new_user_and_login(self):
+        """Verifies account creation, validation checks, and subsequent authentication."""
+        # Short username validation
+        ok, msg = register_user("ab", "pass123")
+        self.assertFalse(ok)
+        self.assertIn("at least 3 characters", msg)
+
+        # Short password validation
+        ok, msg = register_user("new_eng_user", "123")
+        self.assertFalse(ok)
+        self.assertIn("at least 6 characters", msg)
+
+        # Duplicate username validation
+        ok, msg = register_user("admin", "anotherpassword123")
+        self.assertFalse(ok)
+        self.assertIn("already exists", msg)
+
+        # Valid registration
+        unique_username = f"eng_{uuid.uuid4().hex[:8]}"
+        ok, msg = register_user(
+            username=unique_username,
+            password="securePassword42!",
+            full_name="Dr. Test Engineer",
+            role="Reliability Engineer",
+        )
+        self.assertTrue(ok)
+
+        # Authenticate with new credentials
+        new_auth = verify_user(unique_username, "securePassword42!")
+        self.assertIsNotNone(new_auth)
+        self.assertEqual(new_auth["username"], unique_username)
+        self.assertEqual(new_auth["role"], "Reliability Engineer")
+        self.assertEqual(new_auth["full_name"], "Dr. Test Engineer")
+
+    def test_log_prediction_and_retrieval(self):
+        """Verifies that anomaly diagnostic events can be logged and read back."""
+        sample_sensors = {
+            "gearbox_oil_temp": 82.5,
+            "gearbox_bearing_temp": 84.1,
+            "vibration_x": 3.4,
+            "vibration_y": 2.9,
+            "vibration_z": 2.1,
+            "oil_pressure": 2.8,
+            "particle_count": 890,
+        }
+        sample_preds = {
+            "ml_status": "ANOMALY ALERT",
+            "dl_status": "ANOMALY ALERT",
+            "qml_status": "NORMAL",
+        }
+        success = log_prediction(
+            username="admin",
+            sensor_inputs=sample_sensors,
+            predictions=sample_preds,
+            consensus="CRITICAL ALERT (Majority)",
+        )
+        self.assertTrue(success)
+
+        history = get_prediction_history(limit=5)
+        self.assertIsInstance(history, list)
+        self.assertGreaterEqual(len(history), 1)
+        self.assertIn("consensus_verdict", history[0])
 
 
 if __name__ == "__main__":

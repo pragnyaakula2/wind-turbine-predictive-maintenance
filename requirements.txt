@@ -15,4 +15,5 @@ torch
 pennylane
 httpx
 coverage
+pymongo
 

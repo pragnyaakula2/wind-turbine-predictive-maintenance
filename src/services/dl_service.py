@@ -65,9 +65,31 @@ class LSTMAutoencoder(nn.Module):
         return reconstruction
 
 
-# Initialize model architecture
+class MLPAutoencoder(nn.Module):
+    """Algorithm 2: Compact Feedforward Dense Autoencoder (7 -> 12 -> 4 -> 12 -> 7)."""
+
+    def __init__(self, input_dim: int = 7):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, 12),
+            nn.ReLU(),
+            nn.Linear(12, 4),
+            nn.ReLU(),
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(4, 12),
+            nn.ReLU(),
+            nn.Linear(12, input_dim),
+        )
+
+    def forward(self, x):
+        return self.decoder(self.encoder(x))
+
+
+# Initialize model architectures
 torch.manual_seed(42)
 dl_model = LSTMAutoencoder(input_dim=len(CORE_SENSORS))
+mlp_model = MLPAutoencoder(input_dim=len(CORE_SENSORS))
 
 # Load pre-trained weights if available
 if MODEL_WEIGHTS_PATH.exists():
@@ -83,10 +105,12 @@ if MODEL_WEIGHTS_PATH.exists():
         print(f"Warning: Failed to load trained DL weights: {exc}")
 
 dl_model.eval()
+mlp_model.eval()
 
 
 class SensorDataInput(BaseModel):
     records: List[Dict[str, Any]]
+    algorithm: str = "lstm"  # options: "lstm" (default) or "mlp"
 
 
 @app.get("/health")
@@ -94,10 +118,17 @@ def health():
     """Health check endpoint for Kubernetes liveness & readiness probes."""
     return {
         "status": "healthy",
-        "service": "Deep Learning LSTM Autoencoder",
+        "service": "Deep Learning Multi-Algorithm Service",
         "port": 8002,
         "framework": "PyTorch",
-        "architecture": "LSTM Autoencoder (7 -> 16 -> 8 -> 16 -> 7)",
+        "supported_algorithms": [
+            "1. LSTM Autoencoder (Temporal Recurrent)",
+            "2. MLP Dense Autoencoder (Feedforward)",
+        ],
+        "architecture": (
+            "LSTM Autoencoder (7 -> 16 -> 8 -> 16 -> 7) + "
+            "MLP Autoencoder (7 -> 12 -> 4 -> 12 -> 7)"
+        ),
         "reconstruction_threshold": RECONSTRUCTION_THRESHOLD,
     }
 
@@ -123,13 +154,22 @@ def predict(payload: SensorDataInput):
     raw_values = df[CORE_SENSORS].to_numpy(dtype=np.float32)
     norm_values = (raw_values - SENSOR_MEANS) / (SENSOR_STDS + 1e-6)
 
-    # Batch tensor shape: (batch_size, 1, num_sensors)
-    tensor_input = torch.tensor(norm_values).unsqueeze(1)
+    algo_choice = getattr(payload, "algorithm", "lstm").lower()
 
-    with torch.no_grad():
-        reconstructed = dl_model(tensor_input)
-        # Compute mean squared error (reconstruction loss) per sample
-        mse_losses = torch.mean((tensor_input - reconstructed) ** 2, dim=[1, 2]).numpy()
+    if algo_choice == "mlp":
+        tensor_2d = torch.tensor(norm_values)
+        with torch.no_grad():
+            reconstructed = mlp_model(tensor_2d)
+            mse_losses = torch.mean((tensor_2d - reconstructed) ** 2, dim=1).numpy()
+        algo_name = "Feedforward Dense Autoencoder (MLP)"
+    else:
+        # Batch tensor shape: (batch_size, 1, num_sensors)
+        tensor_input = torch.tensor(norm_values).unsqueeze(1)
+        with torch.no_grad():
+            reconstructed = dl_model(tensor_input)
+            # Compute mean squared error (reconstruction loss) per sample
+            mse_losses = torch.mean((tensor_input - reconstructed) ** 2, dim=[1, 2]).numpy()
+        algo_name = "LSTM Autoencoder"
 
     results = []
     for loss in mse_losses:
@@ -138,12 +178,13 @@ def predict(payload: SensorDataInput):
             "reconstruction_mse": round(float(loss), 5),
             "is_anomaly": is_anomaly,
             "status": "ANOMALY ALERT" if is_anomaly == 1 else "NORMAL",
+            "algorithm": algo_name,
         })
 
     latency_ms = (time.perf_counter() - start_time) * 1000.0
     return {
         "service": "Deep Learning",
-        "algorithm": "LSTM Autoencoder",
+        "algorithm": algo_name,
         "count": len(results),
         "latency_ms": round(latency_ms, 2),
         "predictions": results,

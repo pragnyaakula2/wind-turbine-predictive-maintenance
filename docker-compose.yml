@@ -71,6 +71,18 @@ services:
       timeout: 5s
       retries: 3
 
+  # Database: MongoDB NoSQL Store for Authentication & Prediction History
+  mongodb:
+    image: mongo:latest
+    container_name: wind_turbine_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+    networks:
+      - turbine-network
+
   # Frontend: Interactive Multi-Model Streamlit Dashboard
   frontend:
     build:
@@ -91,7 +103,13 @@ services:
       - ML_SERVICE_URL=http://ml-service:8001
       - DL_SERVICE_URL=http://dl-service:8002
       - QML_SERVICE_URL=http://qml-service:8003
+      - MONGO_URI=mongodb://mongodb:27017
     depends_on:
       - ml-service
       - dl-service
       - qml-service
+      - mongodb
+
+volumes:
+  mongo_data:
+

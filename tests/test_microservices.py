@@ -72,6 +72,17 @@ class TestMicroservices(unittest.TestCase):
         self.assertIn("reconstruction_mse", data["predictions"][0])
         self.assertIn(data["predictions"][0]["is_anomaly"], [0, 1])
 
+    def test_dl_service_mlp_predict(self):
+        """Verify DL Algorithm 2 (MLP Dense Autoencoder) evaluates correctly."""
+        sample_record = {s: 60.0 for s in dl_sensors}
+        response = self.dl_client.post(
+            "/predict", json={"records": [sample_record], "algorithm": "mlp"}
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("Feedforward Dense", data.get("algorithm", ""))
+        self.assertIn("reconstruction_mse", data["predictions"][0])
+
     # ---------------- Quantum ML Service Tests (Port 8003) ------------------
     def test_qml_service_health(self):
         """Verify Quantum ML health check endpoint returns 200 and healthy status."""
@@ -92,6 +103,17 @@ class TestMicroservices(unittest.TestCase):
         self.assertIn("pauli_z_expval", data["predictions"][0])
         self.assertIn("quantum_anomaly_score", data["predictions"][0])
         self.assertIn(data["predictions"][0]["is_anomaly"], [0, 1])
+
+    def test_qml_service_fidelity_predict(self):
+        """Verify QML Algorithm 2 (Quantum State Fidelity Metric) evaluates correctly."""
+        sample_record = {s: 50.0 for s in qml_sensors}
+        response = self.qml_client.post(
+            "/predict", json={"records": [sample_record], "algorithm": "fidelity"}
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("Fidelity", data.get("algorithm", ""))
+        self.assertIn("quantum_anomaly_score", data["predictions"][0])
 
 
 if __name__ == "__main__":

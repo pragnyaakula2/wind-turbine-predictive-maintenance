@@ -1,6 +1,6 @@
 """Microservice 1: Classical Machine Learning Anomaly Detection API (Port 8001).
 
-Uses Isolation Forest / Local Outlier Factor to predict anomalies.
+Uses Local Outlier Factor to predict anomalies.
 """
 
 import time
@@ -13,14 +13,14 @@ from pydantic import BaseModel
 
 app = FastAPI(
     title="Wind Turbine - Classical ML Service",
-    description="Microservice 1 serving scikit-learn anomaly detection (Isolation Forest / LOF)",
+    description="Microservice 1 serving scikit-learn anomaly detection (LOF)",
     version="1.0.0",
 )
 
 MODEL_CANDIDATES = [
+    Path("models/lof_anomaly_detector.joblib"),
     Path("models/final_anomaly_detector.joblib"),
     Path("models/isolation_forest.joblib"),
-    Path("models/lof_anomaly_detector.joblib"),
 ]
 
 bundle = None
