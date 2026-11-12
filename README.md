@@ -1,23 +1,31 @@
-# Wind Turbine Gearbox Predictive Maintenance System
+# Wind Turbine Gearbox Predictive Maintenance System (WT-GPMS)
 
-A machine learning prototype for detecting anomalous operating conditions in wind turbine gearbox sensor data. The project combines sensor data preprocessing, temporal feature engineering, Local Outlier Factor (LOF) anomaly detection, evaluation tools, and an interactive Streamlit dashboard.
+An end-to-end, microservices-based predictive maintenance platform for detecting anomalous operating conditions in wind turbine gearbox SCADA telemetry. The system combines classical machine learning, deep learning, and quantum machine learning microservices behind a consensus-voting engine and an authenticated Streamlit monitoring dashboard backed by MongoDB.
 
-## Features
+## Key Features
 
-- **Data validation:** Checks dataset structure, missing values, labels, and timestamps.
-- **Feature engineering:** Generates rolling one-hour statistics and temperature-difference features.
-- **Anomaly detection:** Uses a saved Local Outlier Factor model to score sensor observations.
-- **Model evaluation:** Includes scripts for evaluating predictions, anomaly events, and alert patterns.
-- **Interactive dashboard:** Displays sensor trends, prediction tables, date filters, and CSV exports.
-- **Automated testing:** Includes tests for dataset validity and model functionality.
+- **Authenticated Security Portal:** Tabbed `Sign In` and `Create Account` flows with salted SHA-256 password hashing stored in MongoDB (`wind_turbine_db`) and an automatic in-memory fallback when MongoDB is unavailable.
+- **Multi-Paradigm Microservice Inference (FastAPI):**
+  - **Classical ML (`ml-service`, Port `8001`):** `scikit-learn` anomaly detection serving Local Outlier Factor (`lof_anomaly_detector.joblib`, with Isolation Forest / final bundle fallbacks).
+  - **Deep Learning (`dl-service`, Port `8002`):** PyTorch reconstruction models supporting **LSTM Autoencoder** (`algorithm="lstm"`, default threshold `2.0`) and **MLP Dense Autoencoder** (`algorithm="mlp"`).
+  - **Quantum ML (`qml-service`, Port `8003`):** PennyLane 4-qubit simulator (`default.qubit`) supporting **Variational Quantum Classifier** (`algorithm="vqc"`, threshold `0.52`) and **Quantum State Fidelity Overlap Metric** (`algorithm="fidelity"`, threshold `0.50`).
+- **Ensemble Consensus Engine:** Aggregates predictions across the three paradigms via majority voting ($\ge 2/3$ agreement) to eliminate false alarms.
+- **Interactive Dashboard (`frontend`, Port `8501`):**
+  - **Sidebar Connectivity Telemetry:** Live health indicators for MongoDB (`27017`) and all three FastAPI services (`8001`, `8002`, `8003`).
+  - **Tab 1 — Historical SCADA Telemetry & Batch Analysis:** Sensor visualizations, date filtering, triple-model batch comparison, and CSV export.
+  - **Tab 2 — Manual Diagnostic & What-If Simulator:** Real-time manual sensor simulation with preset scenarios, an Algorithm Architecture Selector (DL & QML model switching), consensus alerts, and a persistent prediction Audit History table.
+- **Data Validation & Temporal Feature Engineering:** Schema validation, timestamp ordering, rolling 1-hour statistics, and thermal gradient features.
+- **Containerized & Cloud-Native Deployment:** Docker Compose multi-container orchestration (`turbine-network`) and Kubernetes manifests with Horizontal Pod Autoscaling (`k8s/hpa.yaml`).
+- **Automated QA, Security & CI/CD:** GitHub Actions workflow running PyUnit (`unittest`), Flake8, Pylint, Bandit, and Docker image builds, paired with a 15-spec Cypress black-box E2E system test suite.
 
 ## Dataset
 
-The project uses historical wind turbine gearbox sensor data sampled every 10 minutes.
+The project uses historical wind turbine gearbox SCADA sensor data sampled every 10 minutes.
 
-The raw dataset contains 262,800 records spanning 2025–2029, with seven sensor measurements and a binary anomaly label.
+- **Scale:** 262,800 records spanning 2025–2029, including 5,500 labelled anomalous observations across three periods.
+- **Target column:** `is_anomaly` (`0` = normal, `1` = anomalous).
 
-### Sensor measurements
+### Sensor Measurements
 
 - Gearbox oil temperature
 - Gearbox bearing temperature
@@ -25,169 +33,196 @@ The raw dataset contains 262,800 records spanning 2025–2029, with seven sensor
 - Oil pressure
 - Particle count
 
-The target column, `is_anomaly`, uses `0` for normal observations and `1` for anomalous observations.
-
-**Dataset limitation:** The available dataset does not contain turbine identifiers or verified failure and maintenance records. The current project detects labelled anomalous observations; it does not establish remaining useful life or validated advance prediction of gearbox failures.
-
-Obtain the dataset from its original source and place it at the path expected by the preprocessing scripts. Follow the dataset provider's license and redistribution requirements.
+> **Dataset Limitation:** The dataset does not contain turbine identifiers or verified failure/maintenance timestamps. Current models detect labelled anomalous operating states rather than predicting remaining useful life (RUL) across unseen turbines.
 
 ## Project Structure
 
 ```text
 wind-turbine-predictive-maintenance/
+├── .github/workflows/
+│   └── ci.yml                      # GitHub Actions CI pipeline
+├── cypress/
+│   ├── e2e/wt_gpms_system.cy.js    # 15 black-box E2E system test specs
+│   └── run_cypress.js              # Cross-IDE Cypress launcher wrapper
 ├── data/
 │   ├── raw/
 │   └── processed/
+├── docs/
+│   ├── model_accuracy_summary.md   # Paradigm & consensus benchmark summary
+│   ├── Code_Coverage_Report.md
+│   ├── Branch_Coverage_Report.md
+│   ├── Unit_Test_Report.md
+│   ├── System_Validation_Report.md
+│   └── Updated_Test_Case_Document.md
+├── k8s/
+│   ├── deployment.yaml             # Frontend Kubernetes Deployment
+│   ├── service.yaml                # Frontend Kubernetes Service
+│   ├── ml-service.yaml             # Classical ML Deployment & Service
+│   ├── dl-service.yaml             # Deep Learning Deployment & Service
+│   ├── qml-service.yaml            # Quantum ML Deployment & Service
+│   └── hpa.yaml                    # Horizontal Pod Autoscaler
 ├── models/
-│   └── lof_anomaly_detector.joblib
+│   ├── lof_anomaly_detector.joblib
+│   ├── isolation_forest.joblib
+│   ├── final_anomaly_detector.joblib
+│   └── dl_lstm_autoencoder.pt
 ├── src/
-│   ├── validate_data.py
-│   ├── check_features.py
-│   ├── prepare_dataset.py
-│   ├── train_anomaly.py
-│   ├── save_lof_model.py
-│   ├── predict.py
-│   ├── evaluate_final_model.py
-│   ├── evaluate_events.py
-│   └── dashboard.py
+│   ├── services/
+│   │   ├── ml_service.py           # FastAPI Classical ML service (Port 8001)
+│   │   ├── dl_service.py           # FastAPI Deep Learning service (Port 8002)
+│   │   └── qml_service.py          # FastAPI Quantum ML service (Port 8003)
+│   ├── dashboard.py                # Streamlit UI & Consensus Portal (Port 8501)
+│   ├── database.py                 # MongoDB client, auth & audit logging
+│   ├── validate_data.py            # Dataset schema & integrity validation
+│   ├── feature_engineering.py      # Rolling stats & thermal gradient features
+│   ├── prepare_dataset.py          # Dataset preprocessing pipeline
+│   ├── train_anomaly.py            # Anomaly model training
+│   └── evaluate_final_model.py     # Model evaluation scripts
 ├── tests/
+│   ├── test_unit.py                # Database, auth & pipeline unit tests
+│   ├── test_microservices.py       # FastAPI ML/DL/QML endpoint tests
 │   ├── test_dataset.py
 │   └── test_model.py
-├── .gitignore
+├── cypress.config.js
+├── docker-compose.yml
+├── Dockerfile
+├── dvc.yaml
+├── dvc.lock
+├── package.json
 ├── requirements.txt
 └── README.md
 ```
 
-Additional analysis scripts and result files may be included where they are useful and reproducible.
+## Running the Project
 
-## Requirements
+### Option 1: Docker Compose (Recommended)
 
-- Python 3
-- pip
-- Git
-- The Python packages listed in `requirements.txt`
-
-## Installation
-
-Clone the repository:
+Starts all five containers (`ml-service`, `dl-service`, `qml-service`, `mongodb`, and `frontend`) on the `turbine-network` bridge network:
 
 ```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
-cd wind-turbine-predictive-maintenance
+docker compose up --build
 ```
 
-Create and activate a virtual environment.
+Once running, access:
+- **Streamlit Dashboard:** `http://localhost:8501`
+- **Classical ML API:** `http://localhost:8001/health`
+- **Deep Learning API:** `http://localhost:8002/health`
+- **Quantum ML API:** `http://localhost:8003/health`
+- **MongoDB:** `mongodb://localhost:27017`
 
-**macOS/Linux:**
+### Option 2: Local Python Environment
+
+#### 1. Create and activate a virtual environment
+
+**Windows (PowerShell):**
+
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+```
+
+**macOS / Linux:**
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-Install the dependencies:
+#### 2. Install Python dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Ensure that the dataset and saved model files are available at the paths expected by the application.
-
-## Running the Project
-
-### 1. Validate the dataset
+#### 3. (Optional) Validate & prepare data
 
 ```bash
 python src/validate_data.py
-```
-
-### 2. Prepare the processed dataset
-
-```bash
 python src/prepare_dataset.py
 ```
 
-Run preprocessing scripts in the order required by their inputs. Existing processed files may be needed by later stages.
+#### 4. Start the microservices and dashboard
 
-### 3. Launch the dashboard
+Run each service in a separate terminal from the repository root:
 
 ```bash
+uvicorn src.services.ml_service:app --host 0.0.0.0 --port 8001
+uvicorn src.services.dl_service:app --host 0.0.0.0 --port 8002
+uvicorn src.services.qml_service:app --host 0.0.0.0 --port 8003
 streamlit run src/dashboard.py
 ```
 
-The dashboard provides sensor visualizations, anomaly predictions, date filtering, an option to display anomaly alerts only, and CSV export functionality.
+### Option 3: Kubernetes Deployment
 
-### 4. Run automated tests
-
-```bash
-pytest -q
-```
-
-The project includes six automated tests covering dataset validity and basic model functionality.
-
-### 5. Run evaluation scripts
-
-The repository includes scripts for model evaluation and event-level analysis. Run them after confirming that their required datasets and model artifacts are available.
+Apply the manifests in `k8s/`:
 
 ```bash
-python src/evaluate_final_model.py
-python src/evaluate_events.py
+kubectl apply -f k8s/
 ```
 
-## Model
+## Testing & Quality Assurance
 
-The primary model is Local Outlier Factor (LOF), an unsupervised anomaly detection algorithm that identifies observations whose local density differs from that of their neighbours.
+### 1. Unit & Microservice Integration Tests (21 Tests)
 
-The saved model artifact is expected at:
-
-```text
-models/lof_anomaly_detector.joblib
+```bash
+python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-The artifact stores the fitted model, expected feature names, and decision threshold.
+Covers dataset validation, database authentication/registration/audit logging (`tests/test_unit.py`), and FastAPI ML, DL (`lstm` / `mlp`), and QML (`vqc` / `fidelity`) endpoints (`tests/test_microservices.py`).
 
-## Results and Evaluation
+### 2. Black-Box E2E System Tests (15 Cypress Specs)
 
-The recorded full-dataset evaluation reported approximately:
+With the application running at `http://localhost:8501`:
 
-- Precision: 99.6%
-- Recall: 98.9%
-- ROC-AUC: 0.9999
+```bash
+npm install
+npm run cy:run
+```
 
-These figures are results from the available dataset, not independently verified generalization performance. The evaluation procedure and data overlap must be considered when interpreting them.
+For interactive mode in the Cypress GUI:
 
-The dataset contains 5,500 labelled anomalous records concentrated in three periods. Independent testing on unseen time periods and turbines, using verified failure outcomes, is required before drawing conclusions about real-world predictive maintenance.
+```bash
+npm run cy:open
+```
 
-## Limitations
+> `package.json` invokes `node cypress/run_cypress.js` so Cypress launches cleanly even from IDE terminals that set `ELECTRON_RUN_AS_NODE=1`.
 
-- No turbine identifier is available for cross-turbine evaluation.
-- Verified failure timestamps and maintenance records are unavailable.
-- Anomaly detection does not automatically imply advance failure prediction.
-- The current implementation is a prototype, not a production monitoring service.
-- Performance on unseen turbines and real operating conditions has not been established.
+### 3. Linting, Static Analysis & Security Scanning
 
-## Future Work
+Matches the CI pipeline in `.github/workflows/ci.yml`:
 
-- Validate on independent operational datasets.
-- Evaluate performance across multiple turbines.
-- Incorporate confirmed failure and maintenance records.
-- Improve alert severity, explainability, and alert management.
-- Integrate live sensor streams after validating model reliability.
+```bash
+flake8 src/ tests/
+bandit -c .bandit -r src/
+pylint --rcfile=.pylintrc --fail-under=8.0 src/validate_data.py src/feature_engineering.py
+```
+
+## Model Benchmark Summary
+
+From [`docs/model_accuracy_summary.md`](docs/model_accuracy_summary.md):
+
+| Model / Paradigm | Accuracy | Precision | Recall | F1-Score | ROC-AUC | Notes |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Classical ML (Isolation Forest / LOF)** | 98.01% | 51.30% | 100.00% | 0.6780 | 1.0000 | High recall; ~5,200 false alarms on normal data |
+| **Deep Learning (PyTorch LSTM Autoencoder)** | 99.99% | 99.98% | 100.00% | 0.9999 | 1.0000 | Large MSE separation: Normal (~0.03) vs Anomaly (~79.4) |
+| **Quantum ML (PennyLane 4-Qubit VQC)** | 78.71% | 93.69% | 49.11% | 0.6444 | 0.7716 | Conservative high-precision validator |
+| **Ensemble Majority Consensus ($\ge 2/3$)** | 80.01% | 100.00% | 49.11% | 0.6587 | — | Eliminates 100% of false alarms |
+
+> Benchmark figures reflect evaluation on the available historical dataset; independent validation on unseen turbines and verified failure logs is required prior to production deployment.
 
 ## Technologies Used
 
-- Python
-- pandas and NumPy
-- scikit-learn
-- Streamlit
-- pytest
-- joblib
+- **APIs & UI:** FastAPI, Uvicorn, Streamlit
+- **ML / DL / QML:** scikit-learn, PyTorch, PennyLane
+- **Data & Experiment Tracking:** pandas, NumPy, joblib, Matplotlib, MLflow, DVC
+- **Database:** MongoDB (`pymongo`)
+- **Containers & Orchestration:** Docker, Docker Compose, Kubernetes
+- **Testing & CI/CD:** Python `unittest`, Cypress (`16.3.0`), GitHub Actions, Flake8, Pylint, Bandit
 
 ## License
 
-Add a suitable license for the project before permitting reuse. Check the original dataset's license separately; the project license does not override the dataset provider's terms.
+Add a suitable license before permitting reuse. Check the original dataset provider's license separately; a repository license does not override upstream dataset terms.
 
 ## Author
 
-Developed as an academic machine learning project on wind turbine gearbox anomaly detection and predictive maintenance.
-
+Developed as a Software Engineering & Machine Learning project on wind turbine gearbox anomaly detection and predictive maintenance.

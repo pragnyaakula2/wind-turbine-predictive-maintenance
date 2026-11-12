@@ -1,7 +1,7 @@
 """Unified Interactive Streamlit Dashboard for Wind Turbine Predictive Maintenance.
 
-Supports Classical ML (LOF/iForest), Deep Learning (LSTM Autoencoder), and
-Quantum ML (PennyLane VQC) with single model scoring, multi-model comparison,
+Supports Classical ML (LOF/iForest), Deep Learning (LSTM / MLP Autoencoder), and
+Quantum ML (PennyLane VQC / State Fidelity) with single model scoring, multi-model comparison,
 MongoDB-backed authentication, and real-time manual sensor diagnostic simulation.
 """
 
@@ -325,10 +325,27 @@ with tab_monitor:
         [
             "Triple Model Comparison (All 3 Side-by-Side)",
             "Classical ML (Isolation Forest / LOF)",
-            "Deep Learning (PyTorch LSTM Autoencoder)",
-            "Quantum ML (PennyLane 4-Qubit VQC)",
+            "Deep Learning (PyTorch LSTM / MLP Autoencoder)",
+            "Quantum ML (PennyLane 4-Qubit VQC / State Fidelity)",
         ],
     )
+
+    batch_dl_algo = "lstm"
+    batch_qml_algo = "vqc"
+    if "Deep Learning" in selected_mode:
+        dl_choice = st.sidebar.radio(
+            "Deep Learning Architecture",
+            ["LSTM Autoencoder", "MLP Dense Autoencoder"],
+            index=0,
+        )
+        batch_dl_algo = "mlp" if "MLP" in dl_choice else "lstm"
+    elif "Quantum ML" in selected_mode:
+        qml_choice = st.sidebar.radio(
+            "Quantum ML Architecture",
+            ["4-Qubit VQC", "Quantum State Fidelity"],
+            index=0,
+        )
+        batch_qml_algo = "fidelity" if "Fidelity" in qml_choice else "vqc"
 
     st.sidebar.divider()
     st.sidebar.header("Date Range Filter")
@@ -378,15 +395,15 @@ with tab_monitor:
             return call_service_predict(ML_SERVICE_URL, sample_records)
         return fallback_classical_predict(filtered)
 
-    def get_dl_predictions():
+    def get_dl_predictions(algorithm: str = "lstm"):
         if dl_online:
-            return call_service_predict(DL_SERVICE_URL, sample_records)
-        return fallback_dl_predict(filtered)
+            return call_service_predict(DL_SERVICE_URL, sample_records, algorithm=algorithm)
+        return fallback_dl_predict(filtered, algorithm=algorithm)
 
-    def get_qml_predictions():
+    def get_qml_predictions(algorithm: str = "vqc"):
         if qml_online:
-            return call_service_predict(QML_SERVICE_URL, sample_records)
-        return fallback_qml_predict(filtered)
+            return call_service_predict(QML_SERVICE_URL, sample_records, algorithm=algorithm)
+        return fallback_qml_predict(filtered, algorithm=algorithm)
 
     if selected_mode == "Triple Model Comparison (All 3 Side-by-Side)":
         st.subheader("🔬 Multi-Model Comparative Evaluation")
@@ -448,17 +465,13 @@ with tab_monitor:
                 filtered["predicted_anomaly"] = [p["is_anomaly"] for p in preds]
                 filtered["status"] = [p["status"] for p in preds]
             elif "Deep Learning" in selected_mode:
-                pred_res = get_dl_predictions()
+                pred_res = get_dl_predictions(algorithm=batch_dl_algo)
                 preds = pred_res["predictions"]
                 filtered["anomaly_score"] = [p["reconstruction_mse"] for p in preds]
                 filtered["predicted_anomaly"] = [p["is_anomaly"] for p in preds]
                 filtered["status"] = [p["status"] for p in preds]
             else:
-                qml_sample_records = filtered[numeric_cols].to_dict(orient="records")
-                if qml_online:
-                    pred_res = call_service_predict(QML_SERVICE_URL, qml_sample_records)
-                else:
-                    pred_res = fallback_qml_predict(filtered)
+                pred_res = get_qml_predictions(algorithm=batch_qml_algo)
                 preds = pred_res["predictions"]
                 filtered["anomaly_score"] = [p["quantum_anomaly_score"] for p in preds]
                 filtered["predicted_anomaly"] = [p["is_anomaly"] for p in preds]
