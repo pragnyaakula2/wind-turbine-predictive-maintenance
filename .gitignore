@@ -1,1 +1,15 @@
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+.pytest_cache/
+.env
+*.log
+models/lof_anomaly_detector.joblib
+mlruns/
+.coverage
+node_modules/
+cypress/videos/
+cypress/screenshots/
 .DS_Store

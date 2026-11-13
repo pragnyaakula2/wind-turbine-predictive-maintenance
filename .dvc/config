@@ -1,0 +1,4 @@
+[core]
+    remote = origin
+['remote "origin"']
+    url = https://dagshub.com/Ananya0211/wind-turbine-predictive-maintenance.dvc

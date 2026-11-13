@@ -1,0 +1,25 @@
+stages:
+  validate:
+    cmd: python src/validate_data.py
+    deps:
+      - src/validate_data.py
+      - data/raw/turbine_5yr_labeled_data.csv
+    outs:
+      - data/processed/validated_data.csv
+
+  feature_engineering:
+    cmd: python src/feature_engineering.py
+    deps:
+      - src/feature_engineering.py
+      - data/processed/validated_data.csv
+    outs:
+      - data/processed/features.csv
+
+  prepare:
+    cmd: python src/prepare_dataset.py
+    deps:
+      - src/prepare_dataset.py
+      - data/processed/features.csv
+    outs:
+      - data/processed/training_data.csv
+

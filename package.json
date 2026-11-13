@@ -1,0 +1,30 @@
+{
+  "name": "wind-turbine-predictive-maintenance",
+  "version": "1.0.0",
+  "description": "A machine learning prototype for detecting anomalous operating conditions in wind turbine gearbox sensor data. The project combines sensor data preprocessing, temporal feature engineering, Local Outlier Factor (LOF) anomaly detection, evaluation tools, and an interactive Streamlit dashboard.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "node cypress/run_cypress.js run",
+    "cy:open": "node cypress/run_cypress.js open",
+    "cy:run": "node cypress/run_cypress.js run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pragnyaakula2/wind-turbine-predictive-maintenance.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/pragnyaakula2/wind-turbine-predictive-maintenance/issues"
+  },
+  "homepage": "https://github.com/pragnyaakula2/wind-turbine-predictive-maintenance#readme",
+  "devDependencies": {
+    "cypress": "^16.3.0"
+  }
+}
